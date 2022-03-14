@@ -1,0 +1,105 @@
+Preface
+-------
+
+This software is intended to be used with TCS, the Testbed Control System.
+It can be used as a generalized "jumpstart" or "kickstart" network-based
+installation system, but some work would be needed to remove the
+TCS-specific components.  This document presumes that you are using tcsboot
+with TCS.
+
+Before using tcsboot, you will need an understanding of the mechanism for
+running Linux diskless.  There are serious network ramifications to
+deploying netbooting for Linux, as well as an extremely limited
+troubleshooting environment inside the netboot.
+
+
+Building the Software
+-------- --- --------
+
+Look at tcsboot.h and make sure that the values there are correct for your
+installation of TCS.  tcsboot is currently only tested under Linux
+(specifically, Fedora Core 3 and Fedora 7).   You ought to disable "SYN
+cookies" (which are on by default in Fedora 7).
+
+You do not need to configure DHCPD to run at system startup.  tcsboot will
+start DHCPD automatically.  However, the initialization script provided by
+Fedora (in both 3 and 7) failed for me during test, so I used the included
+variant of the script.  Either
+
+# cp init.d/dhcpd /etc/init.d
+
+or
+
+# patch -p0 < init.d/dhcpd.diff
+
+
+Creating the Netboot Environment
+-------- --- ------- -----------
+
+You will need to set up an NFS root for the test nodes to use for
+netbooting.  I created mine by installing Fedora Core 3 onto a system,
+and customized it as desired (largely, just removing packages).  I chose to
+place my NFS root environment in /export/miniroot on the TCS control node.
+If you use my system initialization scripts (under etc/), then you will not
+need a copy of anything in /var, /tmp, or /boot.
+
+Our control network is 192.168.3.0/24.  Therefore, I used these options to
+NFS-export /export/miniroot:
+
+192.168.3.0/24(ro,insecure,async,no_root_squash)
+
+I copied the data over with:
+
+rsync -vrRlxHpogDtSP --exclude=lost+found --exclude=.autofsck
+--exclude=/tmp/* --exclude=Pub_performers/ --delete-excluded --progress
+--stats --rsh=ssh
+
+I had installed FC3 into a single partition, to make copying simpler.
+
+You do not need to boot FC3 when netbooting, but my scripts are only tested
+under FC3 and F7.
+
+
+# cp system-config-files/dhcpd.conf /etc
+# cp system-config-files/rsyncd.conf /etc
+
+chkconfig --levels 2345 dhcpd on
+chkconfig rsync on
+
+You do not want to run rsync from xinetd.
+
+Currently, the system presumes that /boot will be on its own partition.
+
+You may need to change the SELinux policy on the control node.
+Although DHCP, SNMP, NTP, RPC, and so on all appear to work well on our
+systems here, disabling SELinux will reduce spurious log messages.
+
+
+NB: root_base_1 does not follow the "common" semantics of using symlinks.
+Specifically, rsync does NOT dereference symlinks, and in fact, r_b_1 is
+mounted via NFS, which will ruin any symlinks above the test node's home in
+the scenario.
+
+
+Licensing
+---------
+
+tcbsoot - programs for netbooting systems and reliably deploying software
+Copyright (C) 2005, 2008  Ben Stern, Fortian Inc.
+
+This program is free software; you can redistribute it and/or modify it
+under the terms of the GNU General Public License as published by the Free
+Software Foundation; either version 2 of the License, or (at your option)
+any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 51
+Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+
+$Id: README,v 1.4 2009/02/27 16:11:44 bstern Exp $
